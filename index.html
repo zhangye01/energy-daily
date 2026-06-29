@@ -110,6 +110,17 @@
     vertical-align: middle;
   }
 
+  .report-item .tag {
+    display: inline-block;
+    background: rgba(151,196,89,0.2);
+    color: #97c459;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
   .sidebar-footer {
     padding: 12px 20px;
     border-top: 1px solid rgba(255,255,255,0.1);
@@ -120,10 +131,100 @@
   .main {
     flex: 1;
     overflow-y: auto;
-    padding: 32px 40px;
+    padding: 24px 40px 32px;
     display: flex;
     flex-direction: column;
     align-items: center;
+  }
+
+  .toolbar {
+    width: 100%;
+    max-width: 820px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .search-input {
+    flex: 1;
+    padding: 8px 14px;
+    font-size: 13px;
+    border: 0.5px solid #d3d1c7;
+    border-radius: 8px;
+    background: #fff;
+    color: #2c2c2a;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-input:focus {
+    border-color: #639922;
+  }
+
+  .search-input::placeholder {
+    color: #b4b2a9;
+  }
+
+  .search-clear {
+    display: none;
+    padding: 6px 14px;
+    font-size: 12px;
+    border: 0.5px solid #d3d1c7;
+    border-radius: 8px;
+    background: #fff;
+    color: #888780;
+    cursor: pointer;
+  }
+
+  .search-clear.visible {
+    display: inline-block;
+  }
+
+  .search-clear:hover {
+    background: #f5f5f0;
+  }
+
+  .filter-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .filter-tag {
+    padding: 5px 12px;
+    font-size: 12px;
+    border: 0.5px solid #d3d1c7;
+    border-radius: 14px;
+    background: #fff;
+    color: #5f5e5a;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .filter-tag:hover {
+    border-color: #97c459;
+    color: #3B6D11;
+  }
+
+  .filter-tag.active {
+    background: #639922;
+    border-color: #639922;
+    color: #fff;
+  }
+
+  .filter-count {
+    font-size: 11px;
+    color: #888780;
+    margin-left: auto;
+    align-self: center;
   }
 
   .content {
@@ -200,6 +301,20 @@
     font-size: 13px;
   }
 
+  .content .section-hidden {
+    display: none !important;
+  }
+
+  .content .item-hidden {
+    display: none !important;
+  }
+
+  .content .search-highlight {
+    background: #FAEEDA;
+    border-radius: 2px;
+    padding: 0 2px;
+  }
+
   .empty-state {
     text-align: center;
     padding: 80px 20px;
@@ -225,7 +340,10 @@
   @media (max-width: 768px) {
     body { flex-direction: column; }
     .sidebar { width: 100%; max-height: 200px; }
-    .main { padding: 20px 16px; }
+    .main { padding: 16px 16px 20px; }
+    .toolbar { padding: 0 4px; }
+    .filter-tags { gap: 4px; }
+    .filter-tag { padding: 4px 10px; font-size: 11px; }
   }
 </style>
 
@@ -246,6 +364,21 @@
 </div>
 
 <div class="main">
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <div class="search-bar">
+      <input class="search-input" id="searchInput" type="text" placeholder="搜索关键词...（支持多词，空格分隔）">
+      <button class="search-clear" id="searchClear">清除</button>
+    </div>
+    <div class="filter-tags" id="filterTags">
+      <span class="filter-tag active" data-cat="all">全部</span>
+      <span class="filter-tag" data-cat="政策法规">政策法规</span>
+      <span class="filter-tag" data-cat="市场动态">市场动态</span>
+      <span class="filter-tag" data-cat="新能源发展">新能源发展</span>
+      <span class="filter-tag" data-cat="行业企业">行业企业</span>
+      <span class="filter-tag" data-cat="国际能源">国际能源</span>
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+  </div>
   <div class="content" id="content">
     <div class="empty-state">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#888780" stroke-width="1.5">
@@ -261,6 +394,131 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script>
+let activeCategory = 'all';
+let searchQuery = '';
+let currentFile = null;
+
+function getSectionCategory(h2El) {
+  const text = h2El.textContent.trim();
+  if (text.includes('政策法规') || text.includes('政策')) return '政策法规';
+  if (text.includes('市场动态') || text.includes('市场')) return '市场动态';
+  if (text.includes('新能源发展') || text.includes('新能源')) return '新能源发展';
+  if (text.includes('行业企业') || text.includes('企业') || text.includes('行业')) return '行业企业';
+  if (text.includes('国际能源') || text.includes('国际')) return '国际能源';
+  if (text.includes('今日要闻') || text.includes('要闻') || text.includes('本期数据')) return '要闻';
+  if (text.includes('周度') || text.includes('月度')) return '综述';
+  return null;
+}
+
+function applyFilters() {
+  const contentEl = document.getElementById('content');
+  const h2s = contentEl.querySelectorAll('h2');
+  const allItems = contentEl.querySelectorAll('li, p');
+  let visibleCount = 0;
+
+  allItems.forEach(el => el.classList.remove('item-hidden', 'search-highlight'));
+
+  h2s.forEach(h2 => {
+    let section = h2.nextElementSibling;
+    const sectionElements = [];
+
+    while (section && section.tagName !== 'H2' && section.tagName !== 'HR') {
+      if (section.tagName === 'UL' || section.tagName === 'OL') {
+        section.querySelectorAll('li').forEach(li => sectionElements.push(li));
+      } else if (section.tagName === 'P' || section.tagName === 'BLOCKQUOTE') {
+        sectionElements.push(section);
+      }
+      section = section.nextElementSibling;
+    }
+
+    const cat = getSectionCategory(h2);
+    let sectionVisible = false;
+    let sectionHasMatch = false;
+
+    if (activeCategory !== 'all' && cat !== activeCategory && cat !== '要闻') {
+      h2.classList.add('section-hidden');
+    } else {
+      h2.classList.remove('section-hidden');
+      sectionVisible = true;
+    }
+
+    sectionElements.forEach(el => {
+      const text = el.textContent.toLowerCase();
+      let itemVisible = true;
+
+      if (searchQuery) {
+        const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+        const matches = terms.every(t => text.includes(t));
+        if (!matches) {
+          el.classList.add('item-hidden');
+          itemVisible = false;
+        } else {
+          sectionHasMatch = true;
+          if (sectionVisible) visibleCount++;
+        }
+      } else if (sectionVisible) {
+        sectionHasMatch = true;
+        visibleCount++;
+      }
+
+      if (itemVisible && sectionVisible) {
+        el.classList.remove('item-hidden');
+      }
+    });
+
+    if (sectionVisible && searchQuery && !sectionHasMatch) {
+      h2.classList.add('section-hidden');
+    }
+
+    if (sectionVisible && searchQuery && sectionHasMatch) {
+      sectionElements.forEach(el => {
+        if (!el.classList.contains('item-hidden')) {
+          const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+          let html = el.innerHTML;
+          terms.forEach(t => {
+            const regex = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            html = html.replace(regex, '<span class="search-highlight">$1</span>');
+          });
+          el.innerHTML = html;
+        }
+      });
+    }
+  });
+
+  document.getElementById('filterCount').textContent = searchQuery || activeCategory !== 'all' ? `${visibleCount} 条` : '';
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+  document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.filter-tag[data-cat="${cat}"]`).classList.add('active');
+  applyFilters();
+}
+
+document.getElementById('searchInput').addEventListener('input', function(e) {
+  searchQuery = e.target.value;
+  const clearBtn = document.getElementById('searchClear');
+  if (searchQuery) {
+    clearBtn.classList.add('visible');
+  } else {
+    clearBtn.classList.remove('visible');
+  }
+  applyFilters();
+});
+
+document.getElementById('searchClear').addEventListener('click', function() {
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  this.classList.remove('visible');
+  applyFilters();
+});
+
+document.getElementById('filterTags').addEventListener('click', function(e) {
+  if (e.target.classList.contains('filter-tag')) {
+    setCategory(e.target.dataset.cat);
+  }
+});
+
 async function loadReports() {
   const resp = await fetch('reports/manifest.json');
   const files = await resp.json();
@@ -282,10 +540,15 @@ async function loadReports() {
     const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
     const d = new Date(date + 'T00:00:00+08:00');
     const dayName = `周${dayNames[d.getDay()]}`;
+    const isWeekly = file.includes('周度');
+    const isMonthly = file.includes('月度');
+    let extraTag = '';
+    if (isWeekly) extraTag = '<span class="tag">周</span>';
+    if (isMonthly) extraTag = '<span class="tag">月</span>';
 
     return `
       <div class="report-item${isToday ? ' active' : ''}" data-file="${file}">
-        <span class="date">${date}</span>${isToday ? '<span class="today-badge">今天</span>' : ''}
+        <span class="date">${date}</span>${extraTag}${isToday ? '<span class="today-badge">今天</span>' : ''}
         <div class="day">${dayName}</div>
       </div>
     `;
@@ -303,6 +566,7 @@ async function loadReports() {
 }
 
 async function loadContent(file) {
+  currentFile = file;
   const contentEl = document.getElementById('content');
   contentEl.innerHTML = '<div class="empty-state"><p>加载中...</p></div>';
 
@@ -311,6 +575,10 @@ async function loadContent(file) {
     const md = await resp.text();
     const html = marked.parse(md);
     contentEl.innerHTML = html;
+
+    document.getElementById('toolbar').style.display = 'flex';
+    searchQuery = document.getElementById('searchInput').value;
+    applyFilters();
   } catch (e) {
     contentEl.innerHTML = '<div class="empty-state"><p>加载失败，请稍后重试</p></div>';
   }
