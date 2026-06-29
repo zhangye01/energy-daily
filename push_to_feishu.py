@@ -88,6 +88,15 @@ def build_card(date_str, sections, total):
         "tag": "note",
         "elements": [{"tag": "plain_text", "content": f"共收录 {total} 条动态 | {stat_line}\nWorkBuddy 自动生成 | 数据来源：公开信息"}]
     })
+    elements.append({
+        "tag": "action",
+        "actions": [{
+            "tag": "button",
+            "text": {"tag": "plain_text", "content": "📂 查看历史合集"},
+            "url": "https://zhangye01.github.io/energy-daily/",
+            "type": "default"
+        }]
+    })
 
     return {
         "msg_type": "interactive",
