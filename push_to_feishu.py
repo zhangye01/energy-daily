@@ -30,10 +30,11 @@ def parse_report(path):
                 sections[current_cat] = []
                 break
         else:
-            if current_cat and line.startswith("- **"):
+            if current_cat and re.match(r'-\s*(★+)\s+\*\*', line):
                 total += 1
                 clean = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', line)
-                clean = clean.replace("- **", "• **").replace("** —", "**\n  ")
+                clean = re.sub(r'-\s*(★+)\s+', r'• ', clean)
+                clean = clean.replace("** —", "**\n  ")
                 clean = re.sub(r'（来源：[^）]*）', '', clean)
                 sections[current_cat].append(clean)
 
